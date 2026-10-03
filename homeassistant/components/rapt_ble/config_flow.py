@@ -13,12 +13,7 @@ from homeassistant.components.bluetooth import (
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_ADDRESS
 
-from .const import (
-    CONF_DEVICE_TYPE,
-    DEVICE_TYPE_PILL,
-    DEVICE_TYPE_THERMOMETER,
-    DOMAIN,
-)
+from .const import CONF_DEVICE_TYPE, DEVICE_TYPE_PILL, DEVICE_TYPE_THERMOMETER, DOMAIN
 from .thermometer import RAPTTemperatureBluetoothDeviceData
 
 type DeviceData = RAPTPillBluetoothDeviceData | RAPTTemperatureBluetoothDeviceData
@@ -135,7 +130,10 @@ class RAPTBLEConfigFlow(ConfigFlow, domain=DOMAIN):
                     probatio.Required(CONF_ADDRESS): probatio.In(
                         {
                             address: title
-                            for address, (title, _device_type) in self._discovered_devices.items()
+                            for address, (
+                                title,
+                                _device_type,
+                            ) in self._discovered_devices.items()
                         }
                     )
                 }
