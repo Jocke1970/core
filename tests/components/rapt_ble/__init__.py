@@ -52,3 +52,20 @@ V2_NO_VELOCITY_SERVICE_INFO = BluetoothServiceInfo(
     service_uuids=[],
     source="local",
 )
+
+
+RAPT_TEMP_MAC = "C3:57:83:A2:A7:BA"
+
+RAPT_TEMP_SERVICE_INFO = BluetoothServiceInfo(
+    name="RAPT Temp",
+    address=RAPT_TEMP_MAC,
+    rssi=-58,
+    manufacturer_data={
+        76: bytes.fromhex(
+            "02154b6567b722314977852625b74c616e644caa430000"
+        )
+    },
+    service_data={},
+    service_uuids=[],
+    source="local",
+)
