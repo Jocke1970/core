@@ -12,9 +12,7 @@ from sensor_state_data import SensorLibrary
 _LOGGER = logging.getLogger(__name__)
 
 RAPT_TEMPERATURE_MANUFACTURER_ID = 76
-RAPT_TEMPERATURE_IBEACON_PREFIX = bytes.fromhex(
-    "02154b6567b722314977852625b74c616e64"
-)
+RAPT_TEMPERATURE_IBEACON_PREFIX = bytes.fromhex("02154b6567b722314977852625b74c616e64")
 
 
 def decode_rapt_temperature(raw_temperature: int) -> float:
@@ -34,7 +32,9 @@ class RAPTTemperatureBluetoothDeviceData(BluetoothData):
             return
 
         # iBeacon payload: type/length + UUID + major + minor + TX power.
-        if len(payload) != 23 or not payload.startswith(RAPT_TEMPERATURE_IBEACON_PREFIX):
+        if len(payload) != 23 or not payload.startswith(
+            RAPT_TEMPERATURE_IBEACON_PREFIX
+        ):
             return
 
         (raw_temperature,) = unpack(">H", payload[18:20])
@@ -51,6 +51,4 @@ class RAPTTemperatureBluetoothDeviceData(BluetoothData):
         mac_suffix = short_address(service_info.address)
         self.set_device_name(f"RAPT Temp {mac_suffix}")
         self.set_title(f"RAPT Temp {mac_suffix}")
-        self.update_predefined_sensor(
-            SensorLibrary.TEMPERATURE__CELSIUS, temperature
-        )
+        self.update_predefined_sensor(SensorLibrary.TEMPERATURE__CELSIUS, temperature)
