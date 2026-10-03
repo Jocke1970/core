@@ -18,10 +18,10 @@ from homeassistant.helpers.service_info.bluetooth import BluetoothServiceInfo
 from . import (
     COMPLETE_SERVICE_INFO,
     RAPT_MAC,
-    V2_NO_VELOCITY_SERVICE_INFO,
-    V2_SERVICE_INFO,
     RAPT_TEMP_MAC,
     RAPT_TEMP_SERVICE_INFO,
+    V2_NO_VELOCITY_SERVICE_INFO,
+    V2_SERVICE_INFO,
 )
 
 from tests.common import MockConfigEntry
