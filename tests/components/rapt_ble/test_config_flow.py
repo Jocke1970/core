@@ -7,7 +7,13 @@ from homeassistant.components.rapt_ble.const import DOMAIN
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
-from . import COMPLETE_SERVICE_INFO, NOT_RAPT_SERVICE_INFO, RAPT_MAC
+from . import (
+    COMPLETE_SERVICE_INFO,
+    NOT_RAPT_SERVICE_INFO,
+    RAPT_MAC,
+    RAPT_TEMP_MAC,
+    RAPT_TEMP_SERVICE_INFO,
+)
 
 from tests.common import MockConfigEntry
 
@@ -241,3 +247,54 @@ async def test_async_step_user_takes_precedence_over_discovery(
 
     # Verify the original one was aborted
     assert not hass.config_entries.flow.async_progress(DOMAIN)
+
+
+async def test_async_step_bluetooth_thermometer(hass: HomeAssistant) -> None:
+    """Test discovery via bluetooth with a RAPT Bluetooth Thermometer."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_BLUETOOTH},
+        data=RAPT_TEMP_SERVICE_INFO,
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "bluetooth_confirm"
+
+    with patch(
+        "homeassistant.components.rapt_ble.async_setup_entry", return_value=True
+    ):
+        result2 = await hass.config_entries.flow.async_configure(
+            result["flow_id"], user_input={}
+        )
+
+    assert result2["type"] is FlowResultType.CREATE_ENTRY
+    assert result2["title"] == "RAPT Temp A7BA"
+    assert result2["data"] == {"device_type": "thermometer"}
+    assert result2["result"].unique_id == RAPT_TEMP_MAC
+
+
+async def test_async_step_user_with_thermometer(hass: HomeAssistant) -> None:
+    """Test manual setup from cache with a RAPT Bluetooth Thermometer."""
+    with patch(
+        "homeassistant.components.rapt_ble.config_flow.async_discovered_service_info",
+        return_value=[RAPT_TEMP_SERVICE_INFO],
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_USER},
+        )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "user"
+
+    with patch(
+        "homeassistant.components.rapt_ble.async_setup_entry", return_value=True
+    ):
+        result2 = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            user_input={"address": RAPT_TEMP_MAC},
+        )
+
+    assert result2["type"] is FlowResultType.CREATE_ENTRY
+    assert result2["title"] == "RAPT Temp A7BA"
+    assert result2["data"] == {"device_type": "thermometer"}
+    assert result2["result"].unique_id == RAPT_TEMP_MAC

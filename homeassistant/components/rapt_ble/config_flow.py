@@ -3,7 +3,7 @@
 from typing import Any, override
 
 import probatio
-from rapt_ble import RAPTPillBluetoothDeviceData as DeviceData
+from rapt_ble import RAPTPillBluetoothDeviceData
 
 from homeassistant.components import bluetooth
 from homeassistant.components.bluetooth import (
@@ -13,10 +13,28 @@ from homeassistant.components.bluetooth import (
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_ADDRESS
 
-from .const import DOMAIN
+from .const import CONF_DEVICE_TYPE, DEVICE_TYPE_PILL, DEVICE_TYPE_THERMOMETER, DOMAIN
+from .thermometer import RAPTTemperatureBluetoothDeviceData
+
+type DeviceData = RAPTPillBluetoothDeviceData | RAPTTemperatureBluetoothDeviceData
 
 
-class RAPTPillConfigFlow(ConfigFlow, domain=DOMAIN):
+def _device_from_discovery(
+    discovery_info: BluetoothServiceInfoBleak,
+) -> tuple[DeviceData, str] | None:
+    """Return a parser and device type for supported RAPT BLE advertisements."""
+    thermometer = RAPTTemperatureBluetoothDeviceData()
+    if thermometer.supported(discovery_info):
+        return thermometer, DEVICE_TYPE_THERMOMETER
+
+    pill = RAPTPillBluetoothDeviceData()
+    if pill.supported(discovery_info):
+        return pill, DEVICE_TYPE_PILL
+
+    return None
+
+
+class RAPTBLEConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for rapt_ble."""
 
     VERSION = 1
@@ -25,7 +43,8 @@ class RAPTPillConfigFlow(ConfigFlow, domain=DOMAIN):
         """Initialize the config flow."""
         self._discovery_info: BluetoothServiceInfoBleak | None = None
         self._discovered_device: DeviceData | None = None
-        self._discovered_devices: dict[str, str] = {}
+        self._discovered_device_type: str = DEVICE_TYPE_PILL
+        self._discovered_devices: dict[str, tuple[str, str]] = {}
 
     @override
     async def async_step_bluetooth(
@@ -34,11 +53,15 @@ class RAPTPillConfigFlow(ConfigFlow, domain=DOMAIN):
         """Handle the bluetooth discovery step."""
         await self.async_set_unique_id(discovery_info.address)
         self._abort_if_unique_id_configured()
-        device = DeviceData()
-        if not device.supported(discovery_info):
+
+        discovered = _device_from_discovery(discovery_info)
+        if discovered is None:
             return self.async_abort(reason="not_supported")
+
+        device, device_type = discovered
         self._discovery_info = discovery_info
         self._discovered_device = device
+        self._discovered_device_type = device_type
         return await self.async_step_bluetooth_confirm()
 
     async def async_step_bluetooth_confirm(
@@ -51,7 +74,12 @@ class RAPTPillConfigFlow(ConfigFlow, domain=DOMAIN):
         discovery_info = self._discovery_info
         title = device.title or device.get_device_name() or discovery_info.name
         if user_input is not None:
-            return self.async_create_entry(title=title, data={})
+            data = (
+                {CONF_DEVICE_TYPE: DEVICE_TYPE_THERMOMETER}
+                if self._discovered_device_type == DEVICE_TYPE_THERMOMETER
+                else {}
+            )
+            return self.async_create_entry(title=title, data=data)
 
         self._set_confirm_only()
         placeholders = {"name": title}
@@ -69,9 +97,13 @@ class RAPTPillConfigFlow(ConfigFlow, domain=DOMAIN):
             address = user_input[CONF_ADDRESS]
             await self.async_set_unique_id(address, raise_on_progress=False)
             self._abort_if_unique_id_configured()
-            return self.async_create_entry(
-                title=self._discovered_devices[address], data={}
+            title, device_type = self._discovered_devices[address]
+            data = (
+                {CONF_DEVICE_TYPE: DEVICE_TYPE_THERMOMETER}
+                if device_type == DEVICE_TYPE_THERMOMETER
+                else {}
             )
+            return self.async_create_entry(title=title, data=data)
 
         await bluetooth.async_request_active_scan(self.hass)
         current_addresses = self._async_current_ids(include_ignore=False)
@@ -79,11 +111,14 @@ class RAPTPillConfigFlow(ConfigFlow, domain=DOMAIN):
             address = discovery_info.address
             if address in current_addresses or address in self._discovered_devices:
                 continue
-            device = DeviceData()
-            if device.supported(discovery_info):
-                self._discovered_devices[address] = (
-                    device.title or device.get_device_name() or discovery_info.name
-                )
+
+            discovered = _device_from_discovery(discovery_info)
+            if discovered is None:
+                continue
+
+            device, device_type = discovered
+            title = device.title or device.get_device_name() or discovery_info.name
+            self._discovered_devices[address] = (title, device_type)
 
         if not self._discovered_devices:
             return self.async_abort(reason="no_devices_found")
@@ -91,6 +126,16 @@ class RAPTPillConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user",
             data_schema=probatio.Schema(
-                {probatio.Required(CONF_ADDRESS): probatio.In(self._discovered_devices)}
+                {
+                    probatio.Required(CONF_ADDRESS): probatio.In(
+                        {
+                            address: title
+                            for address, (
+                                title,
+                                _device_type,
+                            ) in self._discovered_devices.items()
+                        }
+                    )
+                }
             ),
         )

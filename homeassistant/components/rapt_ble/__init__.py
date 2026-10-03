@@ -12,6 +12,9 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
+from .const import CONF_DEVICE_TYPE, DEVICE_TYPE_PILL, DEVICE_TYPE_THERMOMETER
+from .thermometer import RAPTTemperatureBluetoothDeviceData
+
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 _LOGGER = logging.getLogger(__name__)
@@ -19,11 +22,21 @@ _LOGGER = logging.getLogger(__name__)
 type RAPTBLEConfigEntry = ConfigEntry[PassiveBluetoothProcessorCoordinator]
 
 
+def _device_data_for_type(
+    device_type: str,
+) -> RAPTPillBluetoothDeviceData | RAPTTemperatureBluetoothDeviceData:
+    """Create the parser for a configured RAPT BLE device type."""
+    if device_type == DEVICE_TYPE_THERMOMETER:
+        return RAPTTemperatureBluetoothDeviceData()
+    return RAPTPillBluetoothDeviceData()
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: RAPTBLEConfigEntry) -> bool:
     """Set up RAPT BLE device from a config entry."""
     address = entry.unique_id
     assert address is not None
-    data = RAPTPillBluetoothDeviceData()
+    device_type = entry.data.get(CONF_DEVICE_TYPE, DEVICE_TYPE_PILL)
+    data = _device_data_for_type(device_type)
     coordinator = PassiveBluetoothProcessorCoordinator(
         hass,
         _LOGGER,

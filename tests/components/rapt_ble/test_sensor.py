@@ -18,6 +18,8 @@ from homeassistant.helpers.service_info.bluetooth import BluetoothServiceInfo
 from . import (
     COMPLETE_SERVICE_INFO,
     RAPT_MAC,
+    RAPT_TEMP_MAC,
+    RAPT_TEMP_SERVICE_INFO,
     V2_NO_VELOCITY_SERVICE_INFO,
     V2_SERVICE_INFO,
 )
@@ -118,6 +120,34 @@ async def test_specific_gravity_velocity_sensor(
     assert entity_entry is not None
     assert entity_entry.translation_key == "specific_gravity_velocity"
     assert entity_entry.options["sensor"]["suggested_display_precision"] == 1
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+
+
+async def test_thermometer_sensor(hass: HomeAssistant) -> None:
+    """Test setting up a RAPT Bluetooth Thermometer creates temperature sensor."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id=RAPT_TEMP_MAC,
+        data={"device_type": "thermometer"},
+    )
+    entry.add_to_hass(hass)
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert len(hass.states.async_all()) == 0
+    inject_bluetooth_service_info(hass, RAPT_TEMP_SERVICE_INFO)
+    await hass.async_block_till_done()
+
+    assert len(hass.states.async_all()) == 1
+    temperature = hass.states.get("sensor.rapt_temp_a7ba_temperature")
+    assert temperature is not None
+    assert temperature.state == "33.51"
+    assert temperature.attributes[ATTR_FRIENDLY_NAME] == "RAPT Temp A7BA Temperature"
+    assert temperature.attributes[ATTR_UNIT_OF_MEASUREMENT] == UnitOfTemperature.CELSIUS
+    assert temperature.attributes[ATTR_STATE_CLASS] == SensorStateClass.MEASUREMENT
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
