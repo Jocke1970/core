@@ -61,9 +61,7 @@ RAPT_TEMP_SERVICE_INFO = BluetoothServiceInfo(
     address=RAPT_TEMP_MAC,
     rssi=-58,
     manufacturer_data={
-        76: bytes.fromhex(
-            "02154b6567b722314977852625b74c616e644caa430000"
-        )
+        76: bytes.fromhex("02154b6567b722314977852625b74c616e644caa430000")
     },
     service_data={},
     service_uuids=[],
