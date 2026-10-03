@@ -30,6 +30,7 @@ class RAPTTemperatureBluetoothDeviceData(BluetoothData):
         if data is None:
             return
 
+        # iBeacon payload: type/length + UUID + major + minor + TX power.
         if len(data) != 23 or not data.startswith(RAPT_TEMPERATURE_IBEACON_PREFIX):
             return
 
