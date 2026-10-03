@@ -2,6 +2,7 @@
 
 import logging
 from struct import unpack
+from typing import override
 
 from bluetooth_data_tools import short_address
 from bluetooth_sensor_state_data import BluetoothData
@@ -24,17 +25,19 @@ def decode_rapt_temperature(raw_temperature: int) -> float:
 class RAPTTemperatureBluetoothDeviceData(BluetoothData):
     """Data update for the RAPT Bluetooth Thermometer."""
 
-    def _start_update(self, service_info: BluetoothServiceInfo) -> None:
+    @override
+    def _start_update(self, data: BluetoothServiceInfo) -> None:
         """Update from a RAPT Bluetooth Thermometer iBeacon advertisement."""
-        data = service_info.manufacturer_data.get(RAPT_TEMPERATURE_MANUFACTURER_ID)
-        if data is None:
+        service_info = data
+        payload = service_info.manufacturer_data.get(RAPT_TEMPERATURE_MANUFACTURER_ID)
+        if payload is None:
             return
 
         # iBeacon payload: type/length + UUID + major + minor + TX power.
-        if len(data) != 23 or not data.startswith(RAPT_TEMPERATURE_IBEACON_PREFIX):
+        if len(payload) != 23 or not payload.startswith(RAPT_TEMPERATURE_IBEACON_PREFIX):
             return
 
-        (raw_temperature,) = unpack(">H", data[18:20])
+        (raw_temperature,) = unpack(">H", payload[18:20])
         temperature = decode_rapt_temperature(raw_temperature)
 
         _LOGGER.debug(
